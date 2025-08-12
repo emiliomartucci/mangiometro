@@ -18,6 +18,10 @@ export default function RootLayout({
   return (
     <html lang="it">
       <head>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -26,7 +30,9 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-body antialiased`}>
-        {children}
+        <div className="max-w-xl mx-auto">
+            {children}
+        </div>
         <Toaster />
       </body>
     </html>
