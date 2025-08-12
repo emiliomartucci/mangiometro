@@ -64,28 +64,28 @@ const prompt = ai.definePrompt({
   name: 'foodInsightsPrompt',
   input: {schema: FoodInsightsInputSchema},
   output: {schema: FoodInsightsOutputSchema},
-  prompt: `You are a health and wellness assistant providing insights about potential connections between food intake and symptoms.
+  prompt: `Sei un assistente per la salute e il benessere che fornisce spunti sulle possibili connessioni tra l'assunzione di cibo e i sintomi.
 
-  Analyze the following daily logs to identify potential trigger foods and their correlation to negative symptoms.
-  Remember to always include a disclaimer that this is not medical advice and should not be taken as such.
+  Analizza i seguenti registri giornalieri per identificare potenziali cibi scatenanti e la loro correlazione con sintomi negativi.
+  Ricorda di includere sempre un disclaimer che questo non è un consiglio medico e non deve essere considerato come tale.
 
-  Daily Logs:
+  Registri giornalieri:
   {{#each dailyLogs}}
-  Date: {{date}}
-  Well-being Rating: {{wellbeingRating}}
-  Symptoms:
+  Data: {{date}}
+  Valutazione benessere: {{wellbeingRating}}
+  Sintomi:
   {{#each symptoms}}
-  - Category: {{category}}, Intensity: {{intensity}}
+  - Categoria: {{category}}, Intensità: {{intensity}}
   {{/each}}
-  Meals:
+  Pasti:
   {{#each meals}}
-  - Time: {{time}}, Description: {{description}}
+  - Orario: {{time}}, Descrizione: {{description}}
   {{/each}}
   {{/each}}
 
-  Based on the provided data, generate insights about potential connections between food intake and symptoms. Focus on identifying patterns and correlations.
-  Provide the insights in a structured format.
-  Include a disclaimer that this is not medical advice.
+  Sulla base dei dati forniti, genera spunti sulle possibili connessioni tra l'assunzione di cibo e i sintomi. Concentrati sull'identificazione di schemi e correlazioni.
+  Fornisci gli spunti in un formato strutturato.
+  Includi un disclaimer che questo non è un consiglio medico.
   `,config: {
     safetySettings: [
       {

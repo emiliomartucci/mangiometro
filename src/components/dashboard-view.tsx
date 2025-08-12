@@ -122,7 +122,7 @@ export function DashboardView({ logs }: { logs: DayLog[] }) {
                     {insights.map((insight, index) => (
                         <Alert key={index}>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>Insight</AlertTitle>
+                            <AlertTitle>Consiglio</AlertTitle>
                             <AlertDescription>{insight.insight}</AlertDescription>
                         </Alert>
                     ))}

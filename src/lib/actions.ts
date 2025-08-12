@@ -41,7 +41,7 @@ export async function rateDayAction(formData: FormData) {
 
   if (!validatedFields.success) {
     console.error(validatedFields.error);
-    return { error: 'Invalid data' };
+    return { error: 'Dati non validi.' };
   }
 
   const { date, wellbeing, symptoms: parsedSymptoms, notes } = validatedFields.data;
@@ -72,7 +72,7 @@ export async function addMealAction(formData: FormData) {
   });
 
   if (!validatedFields.success) {
-    return { error: 'Invalid data' };
+    return { error: 'Dati non validi.' };
   }
   
   const { date, time, mealType, description } = validatedFields.data;
@@ -91,7 +91,7 @@ export async function addMealAction(formData: FormData) {
     revalidatePath('/dashboard');
   } catch (error) {
     console.error("AI meal analysis failed:", error);
-    return { error: 'Failed to analyze meal.' };
+    return { error: 'Analisi del pasto fallita.' };
   }
 }
 
@@ -110,6 +110,6 @@ export async function getInsightsAction() {
         return insights;
     } catch(e) {
         console.error(e);
-        return { insights: [], disclaimer: "Error generating insights."}
+        return { insights: [], disclaimer: "Errore durante la generazione dei consigli."}
     }
 }
