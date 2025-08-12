@@ -18,6 +18,7 @@ import { DayLog, SYMPTOM_CATEGORIES } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { BrainCircuit, HeartPulse, Sparkles, Wind, BatteryCharging, BedDouble } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const symptomIcons: Record<keyof typeof SYMPTOM_CATEGORIES, React.ElementType> = {
     GI: HeartPulse,
