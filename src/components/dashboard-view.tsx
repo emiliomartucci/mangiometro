@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { DayLog } from '@/lib/types';
-import { BarChart, PieChart, Info } from 'lucide-react';
+import { DayLog, Meal } from '@/lib/types';
+import { BarChart, PieChart, Info, AlertTriangle, ChevronsRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -15,23 +15,41 @@ import { Bar, BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, Pie, Pi
 import { Button } from '@/components/ui/button';
 import { getInsightsAction } from '@/lib/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { getCorrelatedIngredients } from '@/lib/data';
+import { Badge } from '@/components/ui/badge';
 
 type Insight = { insight: string };
+
+type CorrelatedData = {
+    ingredients: { item: string; frequency: number }[];
+    allergens: { item: string; frequency: number }[];
+};
+
 
 export function DashboardView({ logs }: { logs: DayLog[] }) {
   const [insights, setInsights] = React.useState<Insight[]>([]);
   const [disclaimer, setDisclaimer] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoadingInsights, setIsLoadingInsights] = React.useState(false);
+  const [correlatedData, setCorrelatedData] = React.useState<CorrelatedData | null>(null);
 
   const handleGetInsights = async () => {
-    setIsLoading(true);
+    setIsLoadingInsights(true);
     const result = await getInsightsAction();
     if (result) {
       setInsights(result.insights);
       setDisclaimer(result.disclaimer);
     }
-    setIsLoading(false);
+    setIsLoadingInsights(false);
   };
+  
+  React.useEffect(() => {
+    const fetchCorrelatedData = async () => {
+        const data = await getCorrelatedIngredients(logs);
+        setCorrelatedData(data);
+    };
+    fetchCorrelatedData();
+  }, [logs]);
+
 
   const allergenData = React.useMemo(() => {
     const allergenCount: { [key: string]: number } = {};
@@ -82,10 +100,11 @@ export function DashboardView({ logs }: { logs: DayLog[] }) {
 
   return (
     <Tabs defaultValue="insights">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="insights"><Info className="w-4 h-4 mr-2" />Consigli</TabsTrigger>
-        <TabsTrigger value="allergens"><BarChart className="w-4 h-4 mr-2" />Allergeni</TabsTrigger>
-        <TabsTrigger value="macros"><PieChart className="w-4 h-4 mr-2" />Macro</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-4">
+        <TabsTrigger value="insights"><Info className="w-4 h-4 mr-1" />Consigli</TabsTrigger>
+        <TabsTrigger value="red-weeks"><AlertTriangle className="w-4 h-4 mr-1" />Settimane Rosse</TabsTrigger>
+        <TabsTrigger value="allergens"><BarChart className="w-4 h-4 mr-1" />Allergeni</TabsTrigger>
+        <TabsTrigger value="macros"><PieChart className="w-4 h-4 mr-1" />Macro</TabsTrigger>
       </TabsList>
 
       <TabsContent value="insights" className="mt-4">
@@ -95,8 +114,8 @@ export function DashboardView({ logs }: { logs: DayLog[] }) {
             <CardDescription>Ottieni spunti basati sui tuoi dati per capire le correlazioni tra cibo e benessere.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             <Button onClick={handleGetInsights} disabled={isLoading}>
-              {isLoading ? 'Analizzando...' : 'Genera Consigli'}
+             <Button onClick={handleGetInsights} disabled={isLoadingInsights}>
+              {isLoadingInsights ? 'Analizzando...' : 'Genera Consigli'}
             </Button>
             {insights.length > 0 && (
                 <div className="space-y-2 pt-4">
@@ -111,6 +130,47 @@ export function DashboardView({ logs }: { logs: DayLog[] }) {
                 </div>
             )}
           </CardContent>
+        </Card>
+      </TabsContent>
+      
+      <TabsContent value="red-weeks" className="mt-4">
+        <Card>
+            <CardHeader>
+                <CardTitle>Analisi Giorni "Rossi"</CardTitle>
+                <CardDescription>Ingredienti e allergeni più frequenti nelle 48h precedenti i giorni con valutazione "malissimo".</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {correlatedData ? (
+                    <>
+                        <div>
+                            <h4 className="font-semibold mb-2">Ingredienti Correlati</h4>
+                            {correlatedData.ingredients.length > 0 ? (
+                                <div className="space-y-1">
+                                    {correlatedData.ingredients.map(item => (
+                                        <div key={item.item} className="flex justify-between items-center text-sm p-2 bg-muted/50 rounded-md">
+                                            <span>{item.item}</span>
+                                            <Badge variant="secondary">Freq: {item.frequency}</Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-sm text-muted-foreground">Nessun ingrediente correlato trovato.</p>}
+                        </div>
+                        <div>
+                            <h4 className="font-semibold mb-2">Allergeni Correlati</h4>
+                             {correlatedData.allergens.length > 0 ? (
+                                <div className="space-y-1">
+                                    {correlatedData.allergens.map(item => (
+                                        <div key={item.item} className="flex justify-between items-center text-sm p-2 bg-muted/50 rounded-md">
+                                            <span className="font-medium text-destructive">{item.item}</span>
+                                            <Badge variant="destructive">Freq: {item.frequency}</Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-sm text-muted-foreground">Nessun allergene correlato trovato.</p>}
+                        </div>
+                    </>
+                ) : <p className="text-sm text-muted-foreground">Analisi in corso...</p>}
+            </CardContent>
         </Card>
       </TabsContent>
 
@@ -149,7 +209,7 @@ export function DashboardView({ logs }: { logs: DayLog[] }) {
                 <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
                 <Pie data={macroData} dataKey="value" nameKey="name" innerRadius={50}>
                     {macroData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                        <Cell key={`cell-index`} fill={entry.fill} />
                     ))}
                 </Pie>
               </RechartsPieChart>

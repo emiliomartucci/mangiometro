@@ -1,7 +1,7 @@
 'use server';
 
 import { DayLog, Meal, Symptom } from '@/lib/types';
-import { format, subDays, addDays } from 'date-fns';
+import { format, subDays, addDays, parseISO } from 'date-fns';
 import { randomUUID } from 'crypto';
 
 // In-memory store for demo purposes
@@ -59,6 +59,21 @@ function initializeMockData() {
     meals: [],
     symptoms: [],
   });
+  
+    // Another bad day to test correlation
+  const day4 = subDays(today, 5);
+  mockLogs.push({
+    date: format(day4, 'yyyy-MM-dd'),
+    wellbeing: 1,
+    meals: [
+      { id: randomUUID(), type: 'dinner', time: '21:00', description: 'Pizza con mozzarella e salame piccante', analysis: { ingredients: ['Farina', 'Mozzarella', 'Pomodoro', 'Salame'], macros: { carbohydrates: 80, protein: 30, fat: 40 }, allergens: ['latticini', 'glutine'] }},
+    ],
+    symptoms: [
+      { id: randomUUID(), category: 'GI', intensity: 2 },
+    ],
+    notes: 'Bruciore di stomaco notturno.',
+  });
+
 
   logs = mockLogs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
@@ -119,4 +134,53 @@ export async function addMeal(date: string, meal: Omit<Meal, 'id'>): Promise<Day
     logs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }
   return Promise.resolve(log);
+}
+
+// Correlational analysis for "Red Weeks"
+export async function getCorrelatedIngredients(allLogs: DayLog[]) {
+  const redDays = allLogs.filter(log => log.wellbeing === 1).map(log => log.date);
+  
+  if (redDays.length === 0) {
+    return { ingredients: [], allergens: [] };
+  }
+
+  const correlatedIngredients: Record<string, number> = {};
+  const correlatedAllergens: Record<string, number> = {};
+
+  redDays.forEach(redDate => {
+    const redDayDate = parseISO(redDate);
+    const startDate = format(subDays(redDayDate, 2), 'yyyy-MM-dd'); // 48 hours before
+    const endDate = format(redDayDate, 'yyyy-MM-dd');
+
+    const logsInWindow = allLogs.filter(log => log.date >= startDate && log.date <= endDate);
+
+    const ingredientsInWindow = new Set<string>();
+    const allergensInWindow = new Set<string>();
+
+    logsInWindow.forEach(log => {
+      log.meals.forEach(meal => {
+        meal.analysis?.ingredients.forEach(ing => ingredientsInWindow.add(ing.toLowerCase()));
+        meal.analysis?.allergens.forEach(alg => allergensInWindow.add(alg.toLowerCase()));
+      });
+    });
+
+    ingredientsInWindow.forEach(ing => {
+      correlatedIngredients[ing] = (correlatedIngredients[ing] || 0) + 1;
+    });
+    allergensInWindow.forEach(alg => {
+      correlatedAllergens[alg] = (correlatedAllergens[alg] || 0) + 1;
+    });
+  });
+
+  const sortedIngredients = Object.entries(correlatedIngredients)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([item, frequency]) => ({ item, frequency }));
+
+  const sortedAllergens = Object.entries(correlatedAllergens)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([item, frequency]) => ({ item, frequency }));
+
+  return { ingredients: sortedIngredients, allergens: sortedAllergens };
 }
