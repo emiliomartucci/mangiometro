@@ -1,4 +1,4 @@
-# **App Name**: GiornoBene
+# **App Name**: Mangiometro
 
 ## Core Features:
 

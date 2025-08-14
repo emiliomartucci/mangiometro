@@ -11,7 +11,7 @@ const coustard = Coustard({
 });
 
 export const metadata: Metadata = {
-  title: "GiornoBene",
+  title: "Mangiometro",
   description: "Your daily wellness journal, powered by AI.",
   icons: {
     icon: "/favicon.ico",
