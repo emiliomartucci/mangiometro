@@ -21,8 +21,8 @@ import { DayLog } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { DayDetailsSheet } from './day-details-sheet';
-import { getMonthDayLogs } from '@/lib/actions';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 const wellbeingColors: { [key: number]: string } = {
   1: 'bg-red-400',
@@ -32,16 +32,17 @@ const wellbeingColors: { [key: number]: string } = {
   5: 'bg-blue-400',
 };
 
-export function CalendarView({ initialLogs }: { initialLogs: DayLog[] }) {
-  const [currentDate, setCurrentDate] = React.useState(new Date());
-  const [logs, setLogs] = React.useState<DayLog[]>(initialLogs || []);
+export function CalendarView() {
+  const { toast } = useToast();
+  const [currentDate, setCurrentDate] = React.useState(new Date()); 
+  const [logs, setLogs] = React.useState<DayLog[]>([]);
   const [selectedLog, setSelectedLog] = React.useState<DayLog | null>(null);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const firstDayOfMonth = startOfMonth(currentDate);
   const lastDayOfMonth = endOfMonth(currentDate);
   
-  // **DEFINITIVE FIX**: Handle potential errors from date-fns in weird environments
   let daysInMonth = [];
   try {
     daysInMonth = eachDayOfInterval({
@@ -50,18 +51,42 @@ export function CalendarView({ initialLogs }: { initialLogs: DayLog[] }) {
     });
   } catch (error) {
     console.error("Could not generate days for the month", error);
-    // Fallback to an empty array to prevent crash
     daysInMonth = [];
   }
 
-
+  const fetchLogs = async () => {
+    setIsLoading(true);
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    
+    try {
+      const response = await fetch(`/api/logs?year=${year}&month=${month}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch logs');
+      }
+      const newLogs = await response.json();
+      setLogs(newLogs || []);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare i dati del calendario.",
+        variant: "destructive",
+      });
+      setLogs([]);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+  
   React.useEffect(() => {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth() + 1;
-      getMonthDayLogs(year, month).then(newLogs => setLogs(newLogs || []));
+    fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate]);
   
   const handleDayClick = (day: Date) => {
+    if (isLoading) return;
+
     let logForDay = logs.find(log => isSameDay(parse(log.date, 'yyyy-MM-dd', new Date()), day));
     
     if (!logForDay) {
@@ -84,9 +109,7 @@ export function CalendarView({ initialLogs }: { initialLogs: DayLog[] }) {
     setIsSheetOpen(open);
     if (!open) {
       setSelectedLog(null);
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth() + 1;
-      getMonthDayLogs(year, month).then(newLogs => setLogs(newLogs || []));
+      fetchLogs();
     }
   };
   
@@ -111,39 +134,37 @@ export function CalendarView({ initialLogs }: { initialLogs: DayLog[] }) {
             {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => <div key={day} className="py-2">{day}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1">
-            {/* Add a safety check here to ensure daysInMonth is an array */}
-            {Array.isArray(daysInMonth) && daysInMonth.map(day => {
-              const logForDay = logs.find(log => isSameDay(parse(log.date, 'yyyy-MM-dd', new Date()), day));
-              
-              const meals = logForDay?.meals || [];
-              const hasMeals = meals.length > 0;
-              const hasCompleteAnalysis = hasMeals && meals.every(m => m.analysis && Array.isArray(m.analysis.allergens) && m.analysis.allergens.length > 0);
-              
-              const dayRating = logForDay?.wellbeingRating || 0;
+            {isLoading ? (
+                Array.from({ length: 35 }).map((_, i) => (
+                    <div key={i} className="aspect-square p-1 rounded-md bg-gray-200 animate-pulse"></div>
+                ))
+            ) : (
+                Array.isArray(daysInMonth) && daysInMonth.map(day => {
+                const logForDay = logs.find(log => isSameDay(parse(log.date, 'yyyy-MM-dd', new Date()), day));
+                const dayRating = logForDay?.wellbeingRating || 0;
 
-              return (
-                <div
-                  key={day.toString()}
-                  onClick={() => handleDayClick(day)}
-                  className={cn(
-                    'relative aspect-square p-1 rounded-md transition-all cursor-pointer hover:ring-2 hover:ring-accent',
-                    !isSameMonth(day, currentDate) && 'opacity-50',
-                    isToday(day) && 'ring-2 ring-primary ring-offset-2',
-                    dayRating > 0 ? wellbeingColors[dayRating] : 'bg-gray-200'
-                  )}
-                >
-                  <time dateTime={format(day, 'yyyy-MM-dd')} className="font-semibold text-xs text-black/70">
-                    {format(day, 'd')}
-                  </time>
-                  {hasMeals && (
-                    <div className={cn(
-                        "absolute bottom-1 right-1 h-2 w-2 rounded-full",
-                        hasCompleteAnalysis ? "bg-blue-600" : "bg-yellow-400"
-                    )}></div>
-                  )}
-                </div>
-              );
-            })}
+                return (
+                    <div
+                    key={day.toString()}
+                    onClick={() => handleDayClick(day)}
+                    className={cn(
+                        'relative aspect-square p-1 rounded-md transition-all cursor-pointer hover:ring-2 hover:ring-accent',
+                        !isSameMonth(day, currentDate) && 'opacity-50',
+                        isToday(day) && 'ring-2 ring-primary ring-offset-2',
+                        dayRating > 0 ? wellbeingColors[dayRating] : 'bg-gray-200'
+                    )}
+                    >
+                    <time dateTime={format(day, 'yyyy-MM-dd')} className="font-semibold text-xs text-black/70">
+                        {format(day, 'd')}
+                    </time>
+                    {/* THE FIX: Use a boolean check to prevent rendering '0' */}
+                    {logForDay?.meals?.length > 0 && (
+                        <div className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-blue-600"></div>
+                    )}
+                    </div>
+                );
+                })
+            )}
           </div>
         </CardContent>
       </Card>
@@ -153,6 +174,7 @@ export function CalendarView({ initialLogs }: { initialLogs: DayLog[] }) {
           open={isSheetOpen}
           onOpenChange={handleSheetChange}
           log={selectedLog}
+          onDataChange={fetchLogs}
         />
       )}
     </>

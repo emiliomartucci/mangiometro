@@ -4,18 +4,30 @@ import * as React from 'react';
 import { DayLog } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getMonthDayLogs } from '@/lib/actions';
 import { subMonths, format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AllergenWatchlist } from '@/components/allergen-watchlist';
+import { useToast } from '@/hooks/use-toast';
+
+// Helper function to fetch logs from our API to avoid duplication
+const fetchLogsForMonth = async (year: number, month: number): Promise<DayLog[]> => {
+    const response = await fetch(`/api/logs?year=${year}&month=${month}`);
+    if (!response.ok) {
+        console.error(`Failed to fetch logs for ${year}-${month}`);
+        // Return empty array on error to prevent crashes
+        return []; 
+    }
+    return response.json();
+};
 
 type AllergenFrequency = { [allergen: string]: number };
 type WellbeingStats = {
   count: number;
   allergenFrequency: AllergenFrequency;
 };
+
 const wellbeingMeta: { [key: number]: { label: string; color: string } } = {
     5: { label: 'Molto Bene', color: 'bg-blue-500' },
     4: { label: 'Bene', color: 'bg-green-500' },
@@ -23,6 +35,7 @@ const wellbeingMeta: { [key: number]: { label: string; color: string } } = {
     2: { label: 'Male', color: 'bg-orange-500' },
     1: { label: 'Malissimo', color: 'bg-red-500' },
 };
+
 const analyzeLogs = (logs: DayLog[]): { [key: number]: WellbeingStats } => {
     const stats: { [key: number]: WellbeingStats } = {};
     const logsByDate = new Map(logs.map(log => [log.date, log]));
@@ -44,7 +57,6 @@ const analyzeLogs = (logs: DayLog[]): { [key: number]: WellbeingStats } => {
         for (const date of datesToInspect) {
             const currentLog = logsByDate.get(date);
             if (currentLog) {
-                // THIS IS THE FIX: Ensure meals is always an array
                 const meals = currentLog.meals || [];
                 for (const meal of meals) {
                     if (meal.analysis?.allergens) {
@@ -59,6 +71,7 @@ const analyzeLogs = (logs: DayLog[]): { [key: number]: WellbeingStats } => {
     }
     return stats;
 };
+
 const AllergenList = ({ frequency }: { frequency: AllergenFrequency }) => {
     const sortedAllergens = Object.entries(frequency).sort(([, a], [, b]) => b - a);
     if (sortedAllergens.length === 0) {
@@ -94,28 +107,43 @@ export function NewDashboardView() {
 }
 
 function DashboardOverview() {
+    const { toast } = useToast();
     const [stats, setStats] = React.useState<{ [key: number]: WellbeingStats } | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
         const fetchAndAnalyzeData = async () => {
             setIsLoading(true);
-            const today = new Date();
-            const lastMonth = subMonths(today, 1);
-            
-            const logsThisMonth = await getMonthDayLogs(today.getFullYear(), today.getMonth() + 1);
-            const logsLastMonth = await getMonthDayLogs(lastMonth.getFullYear(), lastMonth.getMonth() + 1);
-            
-            const allLogs = [...logsThisMonth, ...logsLastMonth].filter((log, index, self) => 
-                index === self.findIndex((t) => (t.id === log.id))
-            );
-            
-            const analyzedStats = analyzeLogs(allLogs);
-            setStats(analyzedStats);
-            setIsLoading(false);
+            try {
+                const today = new Date();
+                const lastMonth = subMonths(today, 1);
+                
+                // Fetch data for the current and previous month in parallel
+                const [logsThisMonth, logsLastMonth] = await Promise.all([
+                    fetchLogsForMonth(today.getFullYear(), today.getMonth() + 1),
+                    fetchLogsForMonth(lastMonth.getFullYear(), lastMonth.getMonth() + 1)
+                ]);
+                
+                // Deduplicate logs in case of overlap
+                const allLogs = [...logsThisMonth, ...logsLastMonth].filter((log, index, self) => 
+                    index === self.findIndex((t) => (t.id === log.id))
+                );
+                
+                const analyzedStats = analyzeLogs(allLogs);
+                setStats(analyzedStats);
+            } catch (error) {
+                console.error("Failed to fetch dashboard data", error);
+                toast({
+                    title: "Errore",
+                    description: "Impossibile caricare i dati della dashboard.",
+                    variant: "destructive"
+                });
+            } finally {
+                setIsLoading(false);
+            }
         };
         fetchAndAnalyzeData();
-    }, []);
+    }, [toast]);
 
     if (isLoading) {
         return (

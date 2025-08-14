@@ -1,7 +1,31 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
+build:
+  # The command to build your application
+  command: "npm run build"
+
+start:
+  # The command to start your application
+  command: "npm run start"
+
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  # Add environment variables from your secrets
+  # You need to set these secrets using the gcloud CLI
+  environment:
+    - secret: GOOGLE_API_KEY
+    - secret: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+
+ingress:
+  # Allow unauthenticated access
+  allowUnauthenticated: true
+
+# Define the secrets that your application needs.
+# The `key` is the name of the environment variable.
+# You must create the secret in Google Secret Manager before deploying.
+secrets:
+  GOOGLE_API_KEY: {}
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: {}

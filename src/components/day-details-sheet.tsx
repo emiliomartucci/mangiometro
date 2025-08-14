@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Sheet,
   SheetContent,
@@ -27,47 +26,57 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DayLog, Meal } from '@/lib/types';
-import { format, parseISO } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { X, Loader2, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
-import { updateMealInDayLog, getAllergenWatchlist, removeMealFromDayLog } from '@/lib/actions';
+import { getAllergenWatchlist } from '@/lib/actions'; 
 import { AddMealSheet } from './add-meal-sheet';
 import { RateDaySheet } from './rate-day-sheet';
 import { cn } from '@/lib/utils';
 
-function MealEditor({ date, meal }: { date: string, meal: Meal }) {
-    // **DEFINITIVE FIX 2**: Initialize watchlist as an empty array *immediately*.
+
+function MealEditor({ date, meal, onDataChange }: { date: string, meal: Meal, onDataChange: () => void }) {
     const [watchlist, setWatchlist] = React.useState<string[]>([]);
     const [isSaving, setIsSaving] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
     const { toast } = useToast();
-    const router = useRouter();
 
     React.useEffect(() => {
-        // Ensure that what we get from the server action is treated as an array.
         getAllergenWatchlist().then(list => setWatchlist(list || []));
     }, []);
 
     const handleAllergenChange = async (newAllergens: { name: string; reason: string }[]) => {
         if (!meal.analysis) return;
         setIsSaving(true);
+
         const updatedMeal: Meal = {
             ...meal,
             analysis: { ...meal.analysis, allergens: newAllergens }
         };
-        const result = await updateMealInDayLog(date, updatedMeal);
-        if (result.success) {
+        
+        try {
+            const response = await fetch(`/api/logs/${date}/meals`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ meal: updatedMeal, isUpdate: true })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Server Error');
+            }
+
             toast({ title: "Allergeni aggiornati." });
-            router.refresh();
-        } else {
-            toast({ variant: "destructive", title: "Errore", description: "Impossibile aggiornare gli allergeni." });
+            onDataChange();
+        } catch (error: any) {
+             toast({ variant: "destructive", title: "Errore", description: error.message || "Impossibile aggiornare gli allergeni." });
+        } finally {
+            setIsSaving(false);
         }
-        setIsSaving(false);
     };
 
     const handleRemoveAllergen = (allergenNameToRemove: string) => {
@@ -98,7 +107,6 @@ function MealEditor({ date, meal }: { date: string, meal: Meal }) {
     const allergens = Array.isArray(meal.analysis.allergens) ? meal.analysis.allergens : [];
     const ingredients = Array.isArray(meal.analysis.ingredients) ? meal.analysis.ingredients : [];
     
-    // This is now safe because 'watchlist' is guaranteed to be an array.
     const availableToAdd = watchlist.filter(w => 
         !allergens.some(a => a.name.toLowerCase() === w.toLowerCase()) &&
         w.toLowerCase().includes(searchQuery.toLowerCase())
@@ -167,38 +175,59 @@ function MealEditor({ date, meal }: { date: string, meal: Meal }) {
     );
 }
 
-export function DayDetailsSheet({ open, onOpenChange, log }: { open: boolean, onOpenChange: (open: boolean) => void, log: DayLog }) {
+export function DayDetailsSheet({ open, onOpenChange, log, onDataChange }: { open: boolean, onOpenChange: (open: boolean) => void, log: DayLog, onDataChange: () => void }) {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [mealToDelete, setMealToDelete] = React.useState<Meal | null>(null);
   const { toast } = useToast();
-  const router = useRouter();
+
+  // --- START DEBUGGING LOG ---
+  React.useEffect(() => {
+    if (log) {
+      console.log("[DayDetailsSheet] Received log prop:", log);
+      console.log("[DayDetailsSheet] Meals in received log:", log.meals);
+    }
+  }, [log]);
+  // --- END DEBUGGING LOG ---
 
   if (!log) return null;
   const meals = log.meals || [];
   
-  const dayDate = parseISO(log.date);
+  const dayDate = parse(log.date, 'yyyy-MM-dd', new Date());
   const { label, color } = wellbeingMap[log.wellbeingRating] || wellbeingMap[0];
   
   const handleDeleteMeal = async () => {
     if (!mealToDelete) return;
 
     setIsDeleting(true);
-    const result = await removeMealFromDayLog(log.date, { 
-      time: mealToDelete.time, 
-      description: mealToDelete.description 
-    });
 
-    if (result.success) {
-      toast({ title: "Pasto eliminato", description: "Il pasto è stato rimosso con successo." });
-      router.refresh();
-      if (meals.length === 1) {
-          onOpenChange(false);
-      }
-    } else {
-      toast({ variant: "destructive", title: "Errore", description: result.message || "Impossibile eliminare il pasto." });
+    try {
+        const response = await fetch(`/api/logs/${log.date}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mealToRemove: mealToDelete }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Server error');
+        }
+
+        toast({ title: "Pasto eliminato", description: "Il pasto è stato rimosso con successo." });
+        onDataChange(); 
+
+        if (meals.length === 1) {
+            onOpenChange(false);
+        }
+    } catch (error: any) {
+        toast({ 
+            variant: "destructive", 
+            title: "Errore", 
+            description: error.message || "Impossibile eliminare il pasto." 
+        });
+    } finally {
+        setIsDeleting(false);
+        setMealToDelete(null);
     }
-    setIsDeleting(false);
-    setMealToDelete(null);
   };
   
   return (
@@ -242,7 +271,7 @@ export function DayDetailsSheet({ open, onOpenChange, log }: { open: boolean, on
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
                       <p className="italic text-muted-foreground mb-4">"{meal.description}"</p>
-                      <MealEditor date={log.date} meal={meal} />
+                      <MealEditor date={log.date} meal={meal} onDataChange={onDataChange} />
                     </AccordionContent>
                   </AccordionItem>
                 ))}
@@ -252,7 +281,7 @@ export function DayDetailsSheet({ open, onOpenChange, log }: { open: boolean, on
           <SheetFooter className="mt-auto p-4 border-t bg-background">
             <div className="grid grid-cols-2 gap-4 w-full">
               <RateDaySheet log={log} />
-              <AddMealSheet date={log.date} onMealAdded={() => router.refresh()} />
+              <AddMealSheet date={log.date} onMealAdded={onDataChange} />
             </div>
           </SheetFooter>
         </SheetContent>
@@ -262,10 +291,10 @@ export function DayDetailsSheet({ open, onOpenChange, log }: { open: boolean, on
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-            <AlertDialogDescription id="alert-dialog-description">
-              Questa azione non può essere annullata. Questo eliminerà permanentemente il pasto.
-            </AlertDialogDescription>
           </AlertDialogHeader>
+          <AlertDialogDescription>
+            Questa azione non può essere annullata. Questo eliminerà permanentemente il pasto.
+          </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setMealToDelete(null)}>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteMeal} disabled={isDeleting}>

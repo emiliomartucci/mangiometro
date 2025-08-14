@@ -1,17 +1,18 @@
 // src/ai/genkit.ts
-// This is the definitive configuration file.
-// It ensures the Google AI plugin is initialized with the necessary API key.
-
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
+
+// Simplified configuration to avoid build issues.
+// The API key will be loaded directly from the process environment,
+// which is populated by the secrets we configured in Google Cloud.
 
 export const ai = genkit({
   plugins: [
     googleAI({
-      // This line is essential. It tells Genkit to use the key
-      // you provided in the .env.local file.
       apiKey: process.env.GOOGLE_API_KEY,
     }),
   ],
-  model: 'googleai/gemini-2.5-flash',
+  model: 'googleai/gemini-pro',
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
 });
