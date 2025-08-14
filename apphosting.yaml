@@ -1,31 +1,26 @@
-# Settings to manage and configure a Firebase App Hosting backend.
-# https://firebase.google.com/docs/app-hosting/configure
+# apphosting.yaml
+# Forza il runtime a Node.js 20 come da best practice
+runtime: nodejs20
 
 build:
-  # The command to build your application
   command: "npm run build"
 
 start:
-  # The command to start your application
   command: "npm run start"
 
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
   maxInstances: 1
-  # Add environment variables from your secrets
-  # You need to set these secrets using the gcloud CLI
-  environment:
-    - secret: GOOGLE_API_KEY
-    - secret: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+
+# Sintassi corretta per iniettare i segreti come variabili d'ambiente
+env:
+  - variable: GOOGLE_API_KEY
+    secret: GOOGLE_API_KEY
+  - variable: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+    secret: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 
 ingress:
-  # Allow unauthenticated access
   allowUnauthenticated: true
 
-# Define the secrets that your application needs.
-# The `key` is the name of the environment variable.
-# You must create the secret in Google Secret Manager before deploying.
 secrets:
-  GOOGLE_API_KEY: {}
-  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: {}
+  - GOOGLE_API_KEY
+  - NEXT_SERVER_ACTIONS_ENCRYPTION_KEY

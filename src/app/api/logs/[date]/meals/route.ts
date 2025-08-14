@@ -3,10 +3,12 @@ import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { Meal, MealAnalysis } from '@/lib/types';
 import { getAllergenWatchlist } from '@/lib/actions'; 
-import { ai } from '@/ai/genkit'; // Import the AI instance
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-// --- AI Logic is now defined directly in the API route ---
+export const runtime = 'nodejs'; // Forza il runtime Node.js
+export const dynamic = 'force-dynamic';
+
 const mealAnalysisSchema = z.object({
   ingredients: z.array(z.string()).describe('A list of estimated ingredients in the meal'),
   allergens: z
@@ -26,13 +28,10 @@ async function extractMealInfo(input: { mealDescription: string; allergenWatchli
     prompt: `
       Analyze the following meal description: "${input.mealDescription}".
       Consider the user's allergen watchlist: ${input.allergenWatchlist.join(', ')}.
-      
       Based on the description and watchlist, identify potential ingredients, 
       allergens, and estimate the macronutrient content.
-      
       Pay close attention to the watchlist. If an item from the watchlist appears 
       to be in the meal, add it to the allergens list with a clear reason.
-      
       Provide your analysis in the following JSON format.
     `,
     format: 'json',
@@ -41,8 +40,6 @@ async function extractMealInfo(input: { mealDescription: string; allergenWatchli
   });
   return llmResponse.output()!;
 }
-// --- End of AI Logic ---
-
 
 async function findDayLogDoc(date: string, userId: string) {
     const adminDb = getAdminDb();
@@ -70,13 +67,11 @@ export async function POST(
 
     try {
         let mealToSave: Meal;
-
         if (isUpdate) {
             mealToSave = meal;
         } else {
             try {
                 const allergenWatchlist = await getAllergenWatchlist(userId);
-                // Call the local AI function
                 const analysis = await extractMealInfo({
                     mealDescription: meal.description,
                     allergenWatchlist: allergenWatchlist
@@ -89,7 +84,6 @@ export async function POST(
         }
         
         const existingDoc = await findDayLogDoc(date, userId);
-
         if (!existingDoc) {
              return NextResponse.json({ message: 'Log document not found' }, { status: 404 });
         }
@@ -97,7 +91,6 @@ export async function POST(
         const logData = existingDoc.data();
         const currentMeals = logData?.meals || [];
         const mealIndex = currentMeals.findIndex((m: Meal) => m.time === meal.time);
-
         let newMealsArray;
         if (mealIndex !== -1) {
             newMealsArray = [...currentMeals];
@@ -105,11 +98,8 @@ export async function POST(
         } else {
             newMealsArray = [...currentMeals, mealToSave];
         }
-
         await existingDoc.ref.update({ meals: newMealsArray });
-
         return NextResponse.json({ message: 'Meal saved successfully' }, { status: 200 });
-
     } catch (error: any) {
         console.error("Error saving meal:", error);
         return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });

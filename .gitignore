@@ -24,4 +24,5 @@ yarn-debug.log*
 yarn-error.log*
 .idea
 .vscode/
-/coverage
+/coverage\n# Firebase Admin SDK key - DO NOT COMMIT
+mangiometro-adg7i-2e75f25f9fb5.json
