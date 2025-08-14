@@ -1,23 +1,25 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Calendar, LayoutDashboard } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Calendar, LayoutDashboard } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function BottomNav() {
-  const pathname = usePathname();
+  const pathname = usePathname()
 
   const navItems = [
     { href: '/', label: 'Calendario', icon: Calendar },
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  ];
+  ]
 
   return (
+    // The Floating Action Buttons have been removed from here.
+    // The logic will be moved into the DayDetailsSheet.
     <nav className="fixed bottom-0 left-0 right-0 border-t bg-card shadow-t-lg">
       <div className="flex justify-around max-w-lg mx-auto">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href
           return (
             <Link
               key={item.href}
@@ -32,9 +34,9 @@ export function BottomNav() {
               <item.icon className="w-6 h-6 mb-1" />
               <span>{item.label}</span>
             </Link>
-          );
+          )
         })}
       </div>
     </nav>
-  );
+  )
 }

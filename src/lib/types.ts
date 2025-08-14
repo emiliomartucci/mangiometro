@@ -1,8 +1,7 @@
+// src/lib/types.ts
 import { type extractMealInfo } from '@/ai/flows/extract-meal-info';
 
-export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-
-export const MEAL_TYPES: { value: MealType; label: string }[] = [
+export const MEAL_TYPES: { value: string; label: string }[] = [
   { value: 'breakfast', label: 'Colazione' },
   { value: 'lunch', label: 'Pranzo' },
   { value: 'dinner', label: 'Cena' },
@@ -20,24 +19,38 @@ export const SYMPTOM_CATEGORIES = {
 
 export type SymptomCategory = keyof typeof SYMPTOM_CATEGORIES;
 
+/**
+ * Represents the analysis object returned by the AI for a meal.
+ * Note the updated structure for allergens.
+ */
+export type MealAnalysis = Omit<Awaited<ReturnType<typeof extractMealInfo>>, 'allergens'> & {
+    allergens: {
+        name: string;
+        reason: string;
+    }[];
+};
+
+/**
+ * Represents a single meal entry.
+ */
 export type Meal = {
-  id: string;
-  type: MealType;
-  time: string; // "HH:mm"
+  type: string;
+  time: string; // ISO-like string e.g., "2024-05-21T08:00"
   description: string;
-  analysis?: Awaited<ReturnType<typeof extractMealInfo>>;
+  analysis?: MealAnalysis;
 };
 
 export type Symptom = {
-  id: string;
   category: SymptomCategory;
-  intensity: 1 | 2 | 3; // L/M/H
+  intensity: number; // e.g., 1-3
 };
 
 export type DayLog = {
+  id: string;
+  userId: string;
   date: string; // "YYYY-MM-DD"
-  wellbeing: 1 | 2 | 3 | 4; // 1: malissimo, 2: male, 3: normale, 4: bene
+  wellbeingRating: number; // 0-5
   symptoms: Symptom[];
   meals: Meal[];
-  notes?: string;
+  createdAt: string; // ISO 8601 string format
 };

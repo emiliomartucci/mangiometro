@@ -1,32 +1,31 @@
-import { getLogs } from '@/lib/data';
+// src/app/page.tsx
+import { getMonthDayLogs } from '@/lib/actions';
 import { CalendarView } from '@/components/calendar-view';
-import { RateDaySheet } from '@/components/rate-day-sheet';
-import { AddMealSheet } from '@/components/add-meal-sheet';
 import { BottomNav } from '@/components/bottom-nav';
-import { format } from 'date-fns';
 
+// By making this an async component, Next.js knows to wait for data fetching.
+// The `loading.tsx` file will be shown automatically during this time.
 export default async function HomePage() {
-  const logs = await getLogs();
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const logForToday = logs.find(l => l.date === today);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // getMonth() is 0-indexed
+  
+  // Fetch data on the server.
+  const logs = await getMonthDayLogs(year, month);
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="p-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
         <h1 className="text-4xl font-bold font-headline text-primary">
-          GiornoBene
+          Calendario
         </h1>
-        <p className="text-muted-foreground">Il tuo diario di benessere quotidiano.</p>
+        <p className="text-muted-foreground">Tieni traccia del tuo benessere giorno per giorno.</p>
       </header>
 
-      <main className="flex-1 p-4 mb-16">
-        <CalendarView logs={logs} />
+      <main className="flex-1 p-4 mb-20">
+        {/* Pass the server-fetched data down to the Client Component. */}
+        <CalendarView initialLogs={logs} />
       </main>
-
-      <div className="fixed bottom-24 right-4 flex flex-col items-center gap-4 z-20">
-        <RateDaySheet date={today} log={logForToday} />
-        <AddMealSheet />
-      </div>
 
       <BottomNav />
     </div>

@@ -1,13 +1,13 @@
-'use client';
+'use client'
 
-import * as React from 'react';
-import { useForm, useFormState } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { format } from 'date-fns';
-import { Plus } from 'lucide-react';
+import * as React from 'react'
+import { useForm, useFormState } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { format } from 'date-fns'
+import { PlusCircle } from 'lucide-react'
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button'
 import {
   Sheet,
   SheetContent,
@@ -16,7 +16,7 @@ import {
   SheetDescription,
   SheetFooter,
   SheetTrigger,
-} from '@/components/ui/sheet';
+} from '@/components/ui/sheet'
 import {
   Form,
   FormControl,
@@ -24,133 +24,147 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { addMealAction } from '@/lib/actions';
-import { MEAL_TYPES } from '@/lib/types';
+} from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
+import { upsertDayLog } from '@/lib/actions'
+import { MEAL_TYPES, Meal } from '@/lib/types'
 
 const addMealSchema = z.object({
-  date: z.string(),
-  time: z.string(),
-  mealType: z.string(),
+  date: z.string().min(1, 'La data è obbligatoria.'),
+  time: z.string().min(1, "L'orario è obbligatorio."),
+  mealType: z.string().min(1, 'Il tipo di pasto è obbligatorio.'),
   description: z.string().min(3, 'La descrizione è troppo corta.'),
-});
+})
 
 function SubmitButton() {
-  const { isSubmitting } = useFormState();
+  const { isSubmitting } = useFormState()
   return (
     <Button type="submit" disabled={isSubmitting} className="w-full">
       {isSubmitting ? 'Aggiungendo...' : 'Aggiungi Pasto'}
     </Button>
-  );
+  )
 }
 
-export function AddMealSheet() {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const { toast } = useToast();
+export function AddMealSheet({
+  date,
+  onMealAdded,
+}: {
+  date: string
+  onMealAdded?: () => void
+}) {
+  const [isOpen, setIsOpen] = React.useState(false)
+  const { toast } = useToast()
 
   const form = useForm<z.infer<typeof addMealSchema>>({
     resolver: zodResolver(addMealSchema),
     defaultValues: {
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date: date,
       time: format(new Date(), 'HH:mm'),
       mealType: 'snack',
       description: '',
     },
-  });
+  })
+
+  React.useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        date: date,
+        time: format(new Date(), 'HH:mm'),
+        mealType: 'snack',
+        description: '',
+      })
+    }
+  }, [isOpen, date, form])
 
   const onSubmit = async (values: z.infer<typeof addMealSchema>) => {
-    const formData = new FormData();
-    Object.entries(values).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
+    const meal: Omit<Meal, 'analysis' | 'id'> = {
+      description: values.description,
+      time: `${values.date}T${values.time}`,
+      type: values.mealType,
+    }
 
-    const result = await addMealAction(formData);
+    const result = await upsertDayLog(values.date, { meal })
 
-    if (result?.error) {
+    if (!result.success) {
       toast({
         variant: 'destructive',
         title: 'Errore',
-        description: result.error,
-      });
+        description: result.message,
+      })
     } else {
       toast({
         title: 'Successo!',
-        description: 'Pasto aggiunto e analizzato con successo.',
-      });
-      form.reset();
-      setIsOpen(false);
+        description: 'Il tuo pasto è stato salvato correttamente.',
+      })
+      if (onMealAdded) {
+        onMealAdded() // Call the callback on success
+      }
+      setIsOpen(false)
     }
-  };
+  }
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button size="icon" className="rounded-full h-14 w-14 bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg">
-          <Plus className="h-6 w-6" />
-          <span className="sr-only">Aggiungi Pasto</span>
+        <Button variant="outline" className="w-full">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Aggiungi Pasto
         </Button>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Aggiungi Pasto</SheetTitle>
           <SheetDescription>
-            Descrivi cosa hai mangiato. L'IA analizzerà ingredienti e macro per te.
+            Descrivi cosa hai mangiato. L'IA analizzerà ingredienti e macro per
+            te.
           </SheetDescription>
         </SheetHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Orario</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4 py-4"
+          >
+            <input type="hidden" {...form.register('date')} />
+
+            <FormField
+              control={form.control}
+              name="time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Orario</FormLabel>
+                  <FormControl>
+                    <Input type="time" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="mealType"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo di pasto</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleziona un tipo" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {MEAL_TYPES.map(type => (
+                      {MEAL_TYPES.map((type) => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
                         </SelectItem>
@@ -184,5 +198,5 @@ export function AddMealSheet() {
         </Form>
       </SheetContent>
     </Sheet>
-  );
+  )
 }

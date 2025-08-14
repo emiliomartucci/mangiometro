@@ -1,13 +1,21 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
+import type { Metadata } from "next";
+import { Inter, Coustard } from "next/font/google";
+import { Toaster } from "@/components/ui/toaster"
+import "./globals.css";
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const coustard = Coustard({ 
+  subsets: ["latin"], 
+  weight: ["400", "900"],
+  variable: "--font-headline",
+});
 
 export const metadata: Metadata = {
-  title: 'GiornoBene',
-  description: 'Your daily wellness journal, powered by AI.',
+  title: "GiornoBene",
+  description: "Your daily wellness journal, powered by AI.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -17,22 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it">
-      <head>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className={`${inter.variable} font-body antialiased`}>
-        <div className="max-w-xl mx-auto">
-            {children}
-        </div>
+      <body className={`${inter.variable} ${coustard.variable}`}>
+        <div className="max-w-xl mx-auto">{children}</div>
         <Toaster />
       </body>
     </html>

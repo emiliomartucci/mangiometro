@@ -2,63 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: var(--font-body), sans-serif;
-}
-
 @layer base {
-  :root {
-    --background: 120 73% 93%;
-    --foreground: 148 20% 10%;
-    --card: 120 60% 97%;
-    --card-foreground: 148 20% 10%;
-    --popover: 120 60% 97%;
-    --popover-foreground: 148 20% 10%;
-    --primary: 148 66% 58%;
-    --primary-foreground: 148 20% 5%;
-    --secondary: 120 20% 88%;
-    --secondary-foreground: 148 20% 10%;
-    --muted: 120 20% 88%;
-    --muted-foreground: 148 20% 35%;
-    --accent: 207 90% 68%;
-    --accent-foreground: 207 20% 10%;
-    --destructive: 0 84.2% 60.2%;
+  /*
+    Clean & Professional Light Theme (Ivory/White) as requested.
+  */
+  :root, .dark { /* Applying this style to both modes to ensure consistency */
+    --background: 40 33% 97%;      /* Ivory/Off-white */
+    --foreground: 240 10% 11%;    /* Near-black for text */
+    
+    --card: 0 0% 100%;             /* Pure white for cards */
+    --card-foreground: 240 10% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 11%;
+
+    --primary: 142 76% 36%;       /* Professional Green */
+    --primary-foreground: 0 0% 98%; /* White text on primary buttons */
+
+    --secondary: 240 5% 96%;        /* Light gray for secondary elements */
+    --secondary-foreground: 240 10% 11%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 45%; /* Lighter gray for muted text */
+
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 11%;
+
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 120 20% 85%;
-    --input: 120 20% 85%;
-    --ring: 148 66% 58%;
-    --chart-1: 148 66% 58%;
-    --chart-2: 207 90% 68%;
-    --chart-3: 35 92% 75%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 262 82% 75%;
-    --radius: 0.5rem;
-  }
-  .dark {
-    --background: 148 10% 10%;
-    --foreground: 120 15% 95%;
-    --card: 148 10% 12%;
-    --card-foreground: 120 15% 95%;
-    --popover: 148 10% 10%;
-    --popover-foreground: 120 15% 95%;
-    --primary: 148 66% 58%;
-    --primary-foreground: 148 20% 5%;
-    --secondary: 148 10% 18%;
-    --secondary-foreground: 120 15% 95%;
-    --muted: 148 10% 18%;
-    --muted-foreground: 120 15% 65%;
-    --accent: 207 90% 68%;
-    --accent-foreground: 207 20% 10%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 148 10% 20%;
-    --input: 148 10% 20%;
-    --ring: 148 66% 58%;
-    --chart-1: 148 66% 58%;
-    --chart-2: 207 90% 68%;
-    --chart-3: 35 92% 75%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 262 82% 75%;
+
+    --border: 240 5% 90%;
+    --input: 240 5% 90%;
+    --ring: 142 76% 36%;
+
+    --radius: 0.5rem; /* Standard radius */
   }
 }
 
@@ -68,5 +45,8 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
