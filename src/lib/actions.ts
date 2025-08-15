@@ -1,90 +1,127 @@
-'use server'
+// src/lib/actions.ts
+// THIS IS NOW A CLIENT-SIDE LIBRARY, NOT SERVER ACTIONS
 
-import { revalidatePath } from 'next/cache'
-import { FieldValue } from 'firebase-admin/firestore';
-import { getAdminDb } from './firebase-admin'
-import { DayLog, Meal, Symptom } from './types'
-// No longer importing any AI flows directly
-// import { extractMealInfo } from '@/ai/flows/extract-meal-info'
-// import { provideFoodInsights } from '@/ai/flows/provide-food-insights'
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  addDoc,
+  arrayUnion,
+  Timestamp,
+  doc,
+  setDoc,
+  getDoc,
+  arrayRemove,
+  deleteDoc,
+} from 'firebase/firestore';
+import { db } from './firebase'; // Using the client-side SDK
+import { DayLog, Meal, Symptom } from './types';
+import { format, parse } from 'date-fns';
 
-async function findDayLogDoc(date: string, userId: string) {
-  const adminDb = getAdminDb();
-  const logQuery = adminDb.collection('dailyLogs')
-    .where('date', '==', date)
-    .where('userId', '==', userId)
-  const querySnapshot = await logQuery.get()
-  if (querySnapshot.empty) {
-    return null
-  }
-  return querySnapshot.docs[0]
-}
+// --- Re-implemented client-side functions ---
 
-// This function is still used by the <RateDaySheet> and <AddMealSheet> components
-export async function upsertDayLog(
-  date: string,
-  data: { 
-    wellbeingRating?: number; 
-    meal?: Omit<Meal, 'analysis' | 'id'>;
-    symptoms?: Symptom[];
-  }
-) {
+export async function getMonthDayLogs(year: number, month: number): Promise<DayLog[]> {
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 1);
+  const startDateString = format(startDate, 'yyyy-MM-dd');
+  const endDateString = format(endDate, 'yyyy-MM-dd');
+  const userId = 'anonymous'; // Hardcoded for now
+
   try {
-    const userId = 'anonymous';
-    const existingDoc = await findDayLogDoc(date, userId);
+    const logQuery = query(
+      collection(db, 'dailyLogs'),
+      where('userId', '==', userId),
+      where('date', '>=', startDateString),
+      where('date', '<', endDateString)
+    );
+
+    const querySnapshot = await getDocs(logQuery);
     
-    // Since this function no longer calls the AI, we can simplify it.
-    // The AI analysis is now handled by the POST /api/logs/[date]/meals endpoint.
-    const mealToSave = data.meal ? { ...data.meal, analysis: undefined } : undefined;
-
-    if (existingDoc) {
-      const docRef = existingDoc.ref;
-      const updateData: { [key: string]: any } = {};
-      if (data.wellbeingRating !== undefined) {
-        updateData.wellbeingRating = data.wellbeingRating
-      }
-      if (mealToSave) {
-        updateData.meals = FieldValue.arrayUnion(mealToSave)
-      }
-      if (data.symptoms !== undefined) {
-        updateData.symptoms = data.symptoms
-      }
-      
-      if (Object.keys(updateData).length > 0) {
-        await docRef.update(updateData)
-      }
-    } else {
-      const adminDb = getAdminDb();
-      const newLogData: Omit<DayLog, 'id' | 'createdAt'> & { createdAt: FieldValue } = {
-        date: date,
-        wellbeingRating: data.wellbeingRating ?? 0,
-        meals: mealToSave ? [mealToSave] : [],
-        symptoms: data.symptoms ?? [],
-        userId: userId,
-        createdAt: FieldValue.serverTimestamp(),
-      }
-      await adminDb.collection('dailyLogs').add(newLogData)
-    }
-
-    revalidatePath('/')
-    revalidatePath('/dashboard')
-    return { success: true, message: 'Log updated successfully.' }
-  } catch (error: any) {
-    console.error('Error in upsertDayLog database operation:', error)
-    return { success: false, message: `Failed to update log: ${error.message}` }
+    return querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        const createdAt = data.createdAt as Timestamp; // Firestore timestamp
+        // Ensure createdAt is serialized to string for client-side use
+        const serializedCreatedAt = createdAt ? createdAt.toDate().toISOString() : new Date(0).toISOString();
+        return { ...data, id: doc.id, createdAt: serializedCreatedAt } as DayLog;
+    });
+  } catch (error) {
+    console.error("Error fetching month's day logs: ", error);
+    // In a real app, you might want a more sophisticated error handling
+    return [];
   }
 }
+
+async function findDayLogDocRef(date: string, userId: string = 'anonymous') {
+    const logQuery = query(
+      collection(db, 'dailyLogs'),
+      where('date', '==', date),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(logQuery);
+    if (querySnapshot.empty) {
+      return null;
+    }
+    return querySnapshot.docs[0].ref;
+}
+
+export async function upsertDayLog(date: string, data: Partial<Omit<DayLog, 'id' | 'date' | 'userId'>>) {
+    const userId = 'anonymous';
+    try {
+        const docRef = await findDayLogDocRef(date, userId);
+
+        if (docRef) {
+            // Document exists, update it
+            await updateDoc(docRef, {
+                ...data,
+                // Use arrayUnion for meals to avoid overwriting
+                ...(data.meals && { meals: arrayUnion(...data.meals) })
+            });
+        } else {
+            // Document doesn't exist, create it
+            const newLogData = {
+                date: date,
+                userId: userId,
+                createdAt: Timestamp.now(),
+                wellbeingRating: data.wellbeingRating ?? 0,
+                meals: data.meals ?? [],
+                symptoms: data.symptoms ?? [],
+            };
+            await addDoc(collection(db, 'dailyLogs'), newLogData);
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in upsertDayLog:", error);
+        return { success: false, message: error.message };
+    }
+}
+
+
+export async function removeMealFromDayLog(date: string, mealToRemove: Meal) {
+    try {
+        const docRef = await findDayLogDocRef(date);
+        if (!docRef) {
+            throw new Error("Log document not found.");
+        }
+        await updateDoc(docRef, {
+            meals: arrayRemove(mealToRemove)
+        });
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error removing meal:", error);
+        return { success: false, message: error.message };
+    }
+}
+
 
 export async function getAllergenWatchlist(userId: string = 'anonymous'): Promise<string[]> {
     try {
-        const adminDb = getAdminDb();
-        const settingsRef = adminDb.collection('userSettings').doc(userId);
-        const docSnap = await settingsRef.get();
-        if (docSnap.exists) {
+        const settingsRef = doc(db, 'userSettings', userId);
+        const docSnap = await getDoc(settingsRef);
+        if (docSnap.exists()) {
             const data = docSnap.data();
-            if (data && Array.isArray(data.allergenWatchlist)) {
-                return data.allergenWatchlist;
-            }
+            return data.allergenWatchlist || [];
         }
         return [];
     } catch (error) {
@@ -93,16 +130,13 @@ export async function getAllergenWatchlist(userId: string = 'anonymous'): Promis
     }
 }
 
-export async function updateAllergenWatchlist(newList: string[], userId: string = 'anonymous'): Promise<{ success: boolean; message?: string }> {
+export async function updateAllergenWatchlist(newList: string[], userId: string = 'anonymous') {
     try {
-        const adminDb = getAdminDb();
-        const settingsRef = adminDb.collection('userSettings').doc(userId);
-        await settingsRef.set({ allergenWatchlist: newList }, { merge: true });
-        revalidatePath('/dashboard');
+        const settingsRef = doc(db, 'userSettings', userId);
+        await setDoc(settingsRef, { allergenWatchlist: newList }, { merge: true });
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error updating allergen watchlist:", error);
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-        return { success: false, message: errorMessage };
+        return { success: false, message: error.message };
     }
 }

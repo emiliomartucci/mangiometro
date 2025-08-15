@@ -1,0 +1,18 @@
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Collezione corretta: 'dailyLogs'
+    match /dailyLogs/{logId} {
+      // Accesso pubblico per il modello con userId="anonymous"
+      allow read, write: if true; 
+    }
+
+    // Collezione per le impostazioni
+    match /userSettings/{userId} {
+      // Accesso pubblico per il modello con userId="anonymous"
+      allow read, write: if true;
+    }
+  }
+}

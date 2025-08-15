@@ -1,26 +1,27 @@
-# apphosting.yaml
-# Forza il runtime a Node.js 20 come da best practice
-runtime: nodejs20
-
-build:
-  command: "npm run build"
-
-start:
-  command: "npm run start"
-
+# apphosting.yaml (Configurazione di produzione)
 runConfig:
   maxInstances: 1
 
-# Sintassi corretta per iniettare i segreti come variabili d'ambiente
 env:
+  # Secret per l'API AI, disponibile solo a RUNTIME
   - variable: GOOGLE_API_KEY
     secret: GOOGLE_API_KEY
-  - variable: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
-    secret: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+    availability:
+      - RUNTIME
+  
+  # Variabili pubbliche per il client Firebase, disponibili a BUILD e RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyD9_XPU1qnbMNH1FTW_RaSCWjpTDy-xfgQ"
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "mangiometro-adg7i.firebaseapp.com"
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "mangiometro-adg7i"
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "mangiometro-adg7i.appspot.com"
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "292031192579"
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:292031192579:web:b87eb2c4cb2566ce433836"
 
 ingress:
   allowUnauthenticated: true
-
-secrets:
-  - GOOGLE_API_KEY
-  - NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
