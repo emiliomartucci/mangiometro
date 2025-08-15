@@ -1,27 +1,44 @@
-# apphosting.yaml (Configurazione di produzione)
+# apphosting.yaml (Configurazione di produzione finale e sicura)
 runConfig:
   maxInstances: 1
 
 env:
-  # Secret per l'API AI, disponibile solo a RUNTIME
+  # --- Secret per il Server ---
   - variable: GOOGLE_API_KEY
     secret: GOOGLE_API_KEY
     availability:
       - RUNTIME
-  
-  # Variabili pubbliche per il client Firebase, disponibili a BUILD e RUNTIME
+  - variable: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+    secret: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # --- Secret per il Client (letti durante il build e resi disponibili) ---
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: "AIzaSyD9_XPU1qnbMNH1FTW_RaSCWjpTDy-xfgQ"
+    secret: NEXT_PUBLIC_FIREBASE_API_KEY
+    availability:
+      - BUILD
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: "mangiometro-adg7i.firebaseapp.com"
+    secret: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    availability:
+      - BUILD
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: "mangiometro-adg7i"
+    secret: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    availability:
+      - BUILD
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: "mangiometro-adg7i.appspot.com"
+    secret: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    availability:
+      - BUILD
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: "292031192579"
+    secret: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    availability:
+      - BUILD
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: "1:292031192579:web:b87eb2c4cb2566ce433836"
+    secret: NEXT_PUBLIC_FIREBASE_APP_ID
+    availability:
+      - BUILD
 
 ingress:
   allowUnauthenticated: true
